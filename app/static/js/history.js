@@ -30,6 +30,8 @@ function convItem(c) {
 
 async function loadList() {
   const list = await (await fetch("/api/conversations")).json();
+  if (searchActive()) return list; // jangan timpa hasil pencarian yang sedang tampil
+
   convList.innerHTML = "";
   list.forEach((c) => convList.appendChild(convItem(c)));
 
@@ -42,7 +44,7 @@ async function openConversation(id) {
   if (busy) return;
   const res = await fetch(`/api/conversations/${id}`);
   if (!res.ok) {
-    toast("Percakapan tidak ditemukan");
+    toast("Percakapan tidak ditemukan", "error");
     return loadList();
   }
   const data = await res.json();
@@ -71,6 +73,7 @@ function newChat() {
   pendingFiles = [];
   renderChips();
   clearChat();
+  clearSearch();
   emptyEl.style.display = "";
   titleEl.textContent = "Chat baru";
   setSidebar(false);
@@ -78,7 +81,7 @@ function newChat() {
   input.focus();
 }
 
-// Hapus chat lewat modal konfirmasi (menggantikan confirm() bawaan browser)
+// Hapus chat lewat modal konfirmasi
 async function deleteConversation(id) {
   if (busy) return;
 

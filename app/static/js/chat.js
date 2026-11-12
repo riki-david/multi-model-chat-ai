@@ -1,10 +1,28 @@
-// ---------- Kirim pesan ----------
+// ---------- Kirim pesan / hentikan jawaban ----------
+let abortCtrl = null; // AbortController untuk jawaban yang sedang berjalan
+
+// Tombol berubah jadi "Stop" selama model menjawab
+function setSendMode(isBusy) {
+  sendBtn.textContent = isBusy ? "Stop" : "Kirim";
+  sendBtn.classList.toggle("bg-red-600", isBusy);
+  sendBtn.classList.toggle("hover:bg-red-500", isBusy);
+  sendBtn.classList.toggle("bg-indigo-600", !isBusy);
+  sendBtn.classList.toggle("hover:bg-indigo-500", !isBusy);
+}
+
+function stopGeneration() {
+  if (abortCtrl) abortCtrl.abort();
+}
+
 async function send() {
+  if (busy) return;
+
   const msg = input.value.trim();
-  if ((!msg && !pendingFiles.length) || busy) return;
+  if (!msg && !pendingFiles.length) return;
 
   busy = true;
-  sendBtn.disabled = true;
+  abortCtrl = new AbortController();
+  setSendMode(true);
 
   const files = pendingFiles; // ambil lampiran, lalu kosongkan
   pendingFiles = [];
@@ -34,6 +52,7 @@ async function send() {
         model,
         attachments: files,
       }),
+      signal: abortCtrl.signal,
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -50,11 +69,16 @@ async function send() {
       scrollDown(); // menghormati posisi scroll pengguna
     }
   } catch (e) {
-    wrap.raw += `\n\n[Gagal: ${e.message || e}]`;
+    if (e.name === "AbortError") {
+      wrap.raw += wrap.raw ? "\n\n[Dihentikan]" : "[Dihentikan]";
+    } else {
+      wrap.raw += `\n\n[Gagal: ${e.message || e}]`;
+    }
     render(bubble, wrap.raw);
   } finally {
     busy = false;
-    sendBtn.disabled = false;
+    abortCtrl = null;
+    setSendMode(false);
     input.focus();
     await loadList();
   }
@@ -68,16 +92,19 @@ function autoResize() {
 
 input.addEventListener("input", autoResize);
 
+// Enter saat jawaban berjalan diabaikan, supaya tidak menghentikan jawaban tanpa sengaja
 input.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
-    send();
+    if (!busy) send();
   }
 });
 
+// Tombol Kirim berfungsi sebagai Stop saat jawaban berjalan
 $("form").addEventListener("submit", (e) => {
   e.preventDefault();
-  send();
+  if (busy) stopGeneration();
+  else send();
 });
 
 // ---------- Mulai ----------
