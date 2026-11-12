@@ -1,4 +1,12 @@
 fastapi
 uvicorn
 litellm
-python-dotenv
+python-dotenvpython-multipart
+python-multipart python-multipart
+python-multipart
+python-multipart
+pypdf
+python-docx
+openpyxl
+python-pptx
+loguru
